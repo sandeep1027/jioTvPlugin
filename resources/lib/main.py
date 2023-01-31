@@ -304,6 +304,9 @@ def play(plugin, channel_id, showtime=None, srno=None):
     if variant_m3u8.is_variant:
         if variant_m3u8.version < 4:
             quality = len(variant_m3u8.playlists) - 1
+        elif variant_m3u8.version == 7:
+            #minrate=80000&maxrate=2024000&__hdnea__=st=1675193087~exp=1675196687~acl=/bpk-tv/Cartoon_Network_Hindi_MOB/Fallback/*~hmac=b8ab61af184eb255b793e3d779ecb0b586fcb310acd626f1c251e45bbe8232fd
+            headers['cookie'] = headers['cookie'].split("&")[-1]
         else:
             quality = len(variant_m3u8.playlists) - 2
         #quality = len(variant_m3u8.playlists) - 1
