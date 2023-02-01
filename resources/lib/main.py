@@ -7,7 +7,7 @@ from xbmc import executebuiltin
 from xbmcgui import Dialog, DialogProgress
 
 # codequick imports
-from codequick import Route, Listitem, Resolver, Script
+from codequick import Route, run, Listitem, Resolver, Script
 from codequick.utils import keyboard
 from codequick.script import Settings
 from codequick.storage import PersistentDict
