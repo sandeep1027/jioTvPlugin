@@ -3,11 +3,11 @@ from __future__ import unicode_literals
 
 # xbmc imports
 from xbmcaddon import Addon
-from xbmc import executebuiltin,log,LOGINFO
+from xbmc import executebuiltin
 from xbmcgui import Dialog, DialogProgress
 
 # codequick imports
-from codequick import Route, run, Listitem, Resolver, Script
+from codequick import Route, Listitem, Resolver, Script
 from codequick.utils import keyboard
 from codequick.script import Settings
 from codequick.storage import PersistentDict
@@ -287,7 +287,7 @@ def play(plugin, channel_id, showtime=None, srno=None):
 
     headers = getHeaders()
     headers['channelid'] = str(channel_id)
-    headers['srno'] = "2301311423014"
+    headers['srno'] = "1"
     resp = urlquick.post(GET_CHANNEL_URL, json=rjson, headers=getChannelHeaders(), max_age=-1).json()
     art = {}
     onlyUrl = resp.get("result", "").split("?")[0].split('/')[-1]
@@ -299,15 +299,7 @@ def play(plugin, channel_id, showtime=None, srno=None):
     m3u8String = urlquick.get(resp.get("result",""), headers=headers, max_age=-1).text
     variant_m3u8 = m3u8.loads(m3u8String)
     if variant_m3u8.is_variant:
-        if variant_m3u8.version < 4:
-            quality = len(variant_m3u8.playlists) - 1
-        elif variant_m3u8.version == 7:
-            #minrate=80000&maxrate=2024000&__hdnea__=st=1675193087~exp=1675196687~acl=/bpk-tv/Cartoon_Network_Hindi_MOB/Fallback/*~hmac=b8ab61af184eb255b793e3d779ecb0b586fcb310acd626f1c251e45bbe8232fd
-            headers['cookie'] = headers['cookie'].split("&")[-1]
-            quality = len(variant_m3u8.playlists) - 3
-        else:
-            quality = len(variant_m3u8.playlists) - 2
-        #quality = len(variant_m3u8.playlists) - 1
+        quality = len(variant_m3u8.playlists) - 1
         uriToUse = uriToUse.replace(onlyUrl, variant_m3u8.playlists[quality].uri)
     return Listitem().from_dict(**{
         "label": plugin._title,
