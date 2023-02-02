@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 
 # xbmc imports
 from xbmcaddon import Addon
-from xbmc import executebuiltin
+from xbmc import executebuiltin,log,LOGINFO
 from xbmcgui import Dialog, DialogProgress
 
 # codequick imports
@@ -290,29 +290,50 @@ def play(plugin, channel_id, showtime=None, srno=None):
     headers['srno'] = "1"
     resp = urlquick.post(GET_CHANNEL_URL, json=rjson, headers=getChannelHeaders(), max_age=-1).json()
     art = {}
+    #check of mpd is set or not 
+    mpdResult = resp.get("mpd","").get("result")
     onlyUrl = resp.get("result", "").split("?")[0].split('/')[-1]
     art["thumb"] = art["icon"] = IMG_CATCHUP + \
-        onlyUrl.replace(".m3u8", ".png")
-    headers['cookie'] = resp.get("result", "").split("?")[-1]
-    params = getTokenParams()
-    uriToUse = resp.get("result","")
-    m3u8String = urlquick.get(resp.get("result",""), headers=headers, max_age=-1).text
-    variant_m3u8 = m3u8.loads(m3u8String)
-    if variant_m3u8.is_variant:
-        quality = len(variant_m3u8.playlists) - 1
-        uriToUse = uriToUse.replace(onlyUrl, variant_m3u8.playlists[quality].uri)
-    return Listitem().from_dict(**{
-        "label": plugin._title,
-        "art": art,
-        "callback": uriToUse,
-        "properties": {
-            "IsPlayable": True,
-            "inputstream": "inputstream.adaptive",
-            "inputstream.adaptive.stream_headers": "User-Agent=plaYtv/7.0.8 (Linux;Android 9) ExoPlayerLib/2.11.7",
-            "inputstream.adaptive.manifest_type": "hls",
-            "inputstream.adaptive.license_key": urlencode(params) + "|" + urlencode(headers) + "|R{SSM}|",
-        }
-    })
+            onlyUrl.replace(".m3u8", ".png")
+    if mpdResult != None:
+        #https://jiotvmblive.cdn.jio.com/bpk-tv/CN_HD_English_MOB/WDVLive/index.mpd?minrate=80000&maxrate=3024000&__hdnea__=st=1675360361~exp=1675363961~acl=/bpk-tv/CN_HD_English_MOB/WDVLive/*~hmac=1dacd07f1dc632be9b8e21165e2d764e09eb2faa5cb46db2d76659771a3146ad
+        headers['cookie'] = mpdResult.split("&")[-1]
+        uriToUse = mpdResult
+        log("urls:"+ str(uriToUse),level=LOGINFO)
+        return Listitem().from_dict(**{
+            "label": plugin._title,
+            "art": art,
+            "callback": uriToUse,
+            "properties": {
+                "IsPlayable": True,
+                "inputstream": "inputstream.adaptive",
+                "inputstream.adaptive.stream_headers": "User-Agent=plaYtv/7.0.8 (Linux;Android 9) ExoPlayerLib/2.11.7",
+                "inputstream.adaptive.manifest_type": "mpd",
+                "inputstream.adaptive.license_type":"com.widevine.alpha",
+                "inputstream.adaptive.license_key": urlencode(params) + "|" + urlencode(headers) + "|R{SSM}|",
+            }
+        })
+    else:
+        headers['cookie'] = resp.get("result", "").split("?")[-1]
+        params = getTokenParams()
+        uriToUse = resp.get("result","")
+        m3u8String = urlquick.get(resp.get("result",""), headers=headers, max_age=-1).text
+        variant_m3u8 = m3u8.loads(m3u8String)
+        if variant_m3u8.is_variant:
+            quality = len(variant_m3u8.playlists) - 1
+            uriToUse = uriToUse.replace(onlyUrl, variant_m3u8.playlists[quality].uri)
+        return Listitem().from_dict(**{
+            "label": plugin._title,
+            "art": art,
+            "callback": uriToUse,
+            "properties": {
+                "IsPlayable": True,
+                "inputstream": "inputstream.adaptive",
+                "inputstream.adaptive.stream_headers": "User-Agent=plaYtv/7.0.8 (Linux;Android 9) ExoPlayerLib/2.11.7",
+                "inputstream.adaptive.manifest_type": "hls",
+                "inputstream.adaptive.license_key": urlencode(params) + "|" + urlencode(headers) + "|R{SSM}|",
+            }
+        })
 
 
 # Login `route` to access from Settings
