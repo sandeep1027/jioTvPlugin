@@ -13,7 +13,3 @@
 ## Disclaimer
 
 This plugin is not officially commissioned/supported by Jio. The trademark "Jio" is registered by "Reliance Corporate IT Park Limited (RCITPL)"
-
-## Download
-
-[**Download**](https://github.com/botallen/plugin.video.jiotv/releases/latest) the `.zip` file.

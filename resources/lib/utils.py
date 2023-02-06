@@ -151,14 +151,6 @@ def getChannelHeaders():
         'osversion': '9',
     }
 
-def getTokenParams():
-    def magic(x): return base64.b64encode(hashlib.md5(x.encode()).digest()).decode().replace(
-        '=', '').replace('+', '-').replace('/', '_').replace('\r', '').replace('\n', '')
-    pxe = str(int(time.time()+(3600*9.2)))
-    jct = magic("cutibeau2ic9p-O_v1qIyd6E-rf8_gEOQ"+pxe)
-    return {"jct": jct, "pxe": pxe, "st": "9p-O_v1qIyd6E-rf8_gEOQ"}
-
-
 def check_addon(addonid, minVersion=False):
     """Checks if selected add-on is installed."""
     try:
