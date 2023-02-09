@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 
 # xbmc imports
 from xbmcaddon import Addon
-from xbmc import executebuiltin
+from xbmc import executebuiltin,log,LOGINFO
 from xbmcgui import Dialog, DialogProgress
 
 # codequick imports
@@ -24,6 +24,7 @@ import json
 from time import time, sleep
 from datetime import datetime, timedelta, date
 import m3u8
+from uuid import uuid4
 
 # Root path of plugin
 @Route.register
@@ -215,7 +216,11 @@ def show_epg(plugin, day, channel_id):
             "params": {
                 "channel_id": each.get("channel_id"),
                 "showtime": None if islive else each.get("showtime", "").replace(":", ""),
-                "srno": None if islive else datetime.fromtimestamp(int(each.get("startEpoch", 0)*.001)).strftime('%Y%m%d')
+                "srno": None if islive else datetime.fromtimestamp(int(each.get("startEpoch", 0)*.001)).strftime('%Y%m%d'),
+                "stream_type": None if islive else "Catchup",
+                "programId": None if islive else each.get("srno", ""),
+                "begin": None if islive else datetime.utcfromtimestamp(int(each.get("startEpoch", 0)*.001)).strftime('%Y%m%dT%H%M%S'),
+                "end": None if islive else datetime.utcfromtimestamp(int(each.get("endEpoch", 0)*.001)).strftime('%Y%m%dT%H%M%S')
             }
         })
     if int(day) == 0:
@@ -263,7 +268,7 @@ def play_ex(plugin, dt=None):
 # Also insures that user is logged in.
 @Resolver.register
 @isLoggedIn
-def play(plugin, channel_id, showtime=None, srno=None):
+def play(plugin, channel_id, showtime=None, srno=None , stream_type=None, programId=None, begin=None, end=None):
     is_helper = inputstreamhelper.Helper("mpd", drm="com.widevine.alpha")
     hasIs = is_helper.check_inputstream()
     if not hasIs:
@@ -286,20 +291,19 @@ def play(plugin, channel_id, showtime=None, srno=None):
         rjson["showtime"] = showtime
         rjson["srno"] = srno
         rjson["stream_type"] = "Catchup"
-
     headers = getHeaders()
     headers['channelid'] = str(channel_id)
-    headers['srno'] = "1" if "srno" not in rjson else rjson["srno"]
+    headers['srno'] = str(uuid4()) if "srno" not in rjson else rjson["srno"]
     resp = urlquick.post(GET_CHANNEL_URL, json=rjson, headers=getChannelHeaders(), max_age=-1).json()
     art = {}
     onlyUrl = resp.get("result", "").split("?")[0].split('/')[-1]
     art["thumb"] = art["icon"] = IMG_CATCHUP + \
         onlyUrl.replace(".m3u8", ".png")
-    headers['cookie'] = resp.get("result", "").split("?")[-1]
+    headers['cookie'] = "__hdnea__"+resp.get("result", "").split("__hdnea__")[-1]
     uriToUse = resp.get("result","")
     m3u8String = urlquick.get(resp.get("result",""), headers=headers, max_age=-1).text
     variant_m3u8 = m3u8.loads(m3u8String)
-    if variant_m3u8.is_variant:
+    if variant_m3u8.is_variant and variant_m3u8.version < 7:
         quality = len(variant_m3u8.playlists) - 1
         if isCatchup:
             tmpurl = variant_m3u8.playlists[quality].uri
@@ -314,12 +318,11 @@ def play(plugin, channel_id, showtime=None, srno=None):
         "properties": {
             "IsPlayable": True,
             "inputstream": "inputstream.adaptive",
-            "inputstream.adaptive.stream_headers": "User-Agent=plaYtv/7.0.8 (Linux;Android 9) ExoPlayerLib/2.11.7",
+            "inputstream.adaptive.stream_headers": urlencode(headers),
             "inputstream.adaptive.manifest_type": "hls",
             "inputstream.adaptive.license_key": "|" + urlencode(headers) + "|R{SSM}|",
         }
     })
-
 
 # Login `route` to access from Settings
 @Script.register
