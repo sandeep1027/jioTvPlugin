@@ -187,3 +187,18 @@ def _install_addon(addonid):
     except RuntimeError:
         Script.log('{addon} add-on not installed.'.format(addon=addonid))
         return False
+
+
+def getQualityIndex(qualityStr, len):
+    """Converts quality into a numeric value. Max clips to fall within valid bounds."""
+    mapping = {
+        'Best': len-1,
+        'High': 4,
+        'Medium+': 3,
+        'Medium': 2,
+        'Low': 1,
+        'Lowest': 0,
+    }
+    if qualityStr in mapping:
+        return min(mapping[qualityStr], len-1)
+    return 0
