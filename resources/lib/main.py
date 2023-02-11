@@ -110,7 +110,10 @@ def show_featured(plugin, id=None):
                         info_dict["params"] = {
                             "channel_id": child.get("channel_id"),
                             "showtime": child.get("showtime", "").replace(":", ""),
-                            "srno": datetime.fromtimestamp(int(child.get("startEpoch", 0)*.001)).strftime('%Y%m%d')
+                            "srno": datetime.fromtimestamp(int(child.get("startEpoch", 0)*.001)).strftime('%Y%m%d'),
+                            "programId":  child.get("srno", ""),
+                            "begin":  datetime.utcfromtimestamp(int(child.get("startEpoch", 0)*.001)).strftime('%Y%m%dT%H%M%S'),
+                            "end":  datetime.utcfromtimestamp(int(child.get("endEpoch", 0)*.001)).strftime('%Y%m%dT%H%M%S')
                         }
                         yield Listitem.from_dict(**info_dict)
         else:
@@ -217,7 +220,6 @@ def show_epg(plugin, day, channel_id):
                 "channel_id": each.get("channel_id"),
                 "showtime": None if islive else each.get("showtime", "").replace(":", ""),
                 "srno": None if islive else datetime.fromtimestamp(int(each.get("startEpoch", 0)*.001)).strftime('%Y%m%d'),
-                "stream_type": None if islive else "Catchup",
                 "programId": None if islive else each.get("srno", ""),
                 "begin": None if islive else datetime.utcfromtimestamp(int(each.get("startEpoch", 0)*.001)).strftime('%Y%m%dT%H%M%S'),
                 "end": None if islive else datetime.utcfromtimestamp(int(each.get("endEpoch", 0)*.001)).strftime('%Y%m%dT%H%M%S')
@@ -268,7 +270,7 @@ def play_ex(plugin, dt=None):
 # Also insures that user is logged in.
 @Resolver.register
 @isLoggedIn
-def play(plugin, channel_id, showtime=None, srno=None , stream_type=None, programId=None, begin=None, end=None):
+def play(plugin, channel_id, showtime=None, srno=None ,  programId=None, begin=None, end=None):
     is_helper = inputstreamhelper.Helper("mpd", drm="com.widevine.alpha")
     hasIs = is_helper.check_inputstream()
     if not hasIs:
@@ -291,6 +293,9 @@ def play(plugin, channel_id, showtime=None, srno=None , stream_type=None, progra
         rjson["showtime"] = showtime
         rjson["srno"] = srno
         rjson["stream_type"] = "Catchup"
+        rjson["programId"] = programId
+        rjson["begin"] = begin
+        rjson["end"] = end
     headers = getHeaders()
     headers['channelid'] = str(channel_id)
     headers['srno'] = str(uuid4()) if "srno" not in rjson else rjson["srno"]
@@ -381,7 +386,7 @@ def m3ugen(plugin, notify="yes"):
             "channel_id={0}".format(channel.get("channel_id"))
         catchup = ""
         if channel.get("isCatchupAvailable"):
-            catchup = ' catchup="vod" catchup-source="{0}channel_id={1}&showtime={{H}}{{M}}{{S}}&srno={{Y}}{{m}}{{d}}" catchup-days="7"'.format(
+            catchup = catchup = catchup = ' catchup="vod" catchup-source="{0}channel_id={1}&showtime={{H}}{{M}}{{S}}&srno={{Y}}{{m}}{{d}}&programId={{catchup-id}}" catchup-days="7"'.format(
                 PLAY_URL, channel.get("channel_id"))
         m3ustr += M3U_CHANNEL.format(
             tvg_id=channel.get("channel_id"),
