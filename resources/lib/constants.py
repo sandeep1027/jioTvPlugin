@@ -2,6 +2,8 @@
 import os
 from xbmcvfs import translatePath
 import xbmcaddon
+import urlquick
+import json
 
 ADDON = xbmcaddon.Addon()
 
@@ -21,6 +23,8 @@ M3U_SRC = os.path.join(translatePath(
     ADDON.getAddonInfo("profile")), "playlist.m3u")
 M3U_CHANNEL = "\n#EXTINF:0 tvg-id=\"{tvg_id}\" tvg-name=\"{channel_name}\" group-title=\"{group_title}\" tvg-chno=\"{tvg_chno}\" tvg-logo=\"{tvg_logo}\"{catchup},{channel_name}\n{play_url}"
 EPG_SRC = "https://kodi.botallen.com/tv/epg.xml.gz"
+
+DICTIONARY_URL = "https://jiotvapi.cdn.jio.com/apis/v1.3/dictionary/dictionary?langId=6"
 
 # Configs
 GENRE_CONFIG = [
@@ -96,6 +100,11 @@ GENRE_CONFIG = [
         "name": "Educational",
         "tvImg":  IMG_PUBLIC + "logos/langGen/educational_1579517470920.jpg",
         "promoImg": IMG_PUBLIC + "logos/langGen/educational_1579517470920.jpg",
+    },
+    {
+        "name": "Jio Darshan",
+        "tvImg":  IMG_PUBLIC + "logos/langGen/educational_1579517470920.jpg",
+        "promoImg": IMG_PUBLIC + "logos/langGen/educational_1579517470920.jpg",
     }
 ]
 LANGUAGE_CONFIG = [
@@ -160,8 +169,10 @@ LANGUAGE_CONFIG = [
         "promoImg": IMG_PUBLIC+"67/0/Odia_1580459753008_promo.jpg",
     }
 ]
-LANG_MAP = {6: "English", 1: "Hindi", 2: "Marathi", 3: "Punjabi", 4: "Urdu", 5: "Bengali", 7: "Malayalam", 8: "Tamil",
-            9: "Gujarati", 10: "Odia", 11: "Telugu", 12: "Bhojpuri", 13: "Kannada", 14: "Assamese", 15: "Nepali", 16: "French", 18:"Extra"}
-GENRE_MAP = {8: "Sports", 5: "Entertainment", 6: "Movies", 12: "News", 13: "Music", 7: "Kids", 9: "Lifestyle",
-             10: "Infotainment", 15: "Devotional", 16: "Business", 17: "Educational", 18: "Shopping", 19: "JioDarshan"}
+
+resp = urlquick.get(DICTIONARY_URL).text.encode('utf8')[3:].decode('utf8')
+dictionary = json.loads(resp)
+GENRE_MAP = dictionary.get("channelCategoryMapping")
+LANG_MAP = dictionary.get("languageIdMapping")
+
 CONFIG = {"Genres": GENRE_CONFIG, "Languages": LANGUAGE_CONFIG}
