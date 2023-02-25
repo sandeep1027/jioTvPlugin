@@ -57,13 +57,13 @@ def isLoggedIn(func):
             Script.notify(
                 "Login Error", "Session expired. Please login again")
             executebuiltin(
-                "RunPlugin(plugin://plugin.video.jiotv/resources/lib/main/login/)")
+                "RunPlugin(plugin://jioTvPlugin/resources/lib/main/login/)")
             return False
         else:
             Script.notify(
                 "Login Error", "You need to login with Jio Username and password to use this add-on")
             executebuiltin(
-                "RunPlugin(plugin://plugin.video.jiotv/resources/lib/main/login/)")
+                "RunPlugin(plugin://jioTvPlugin/resources/lib/main/login/)")
             return False
     return login_wrapper
 
@@ -305,7 +305,7 @@ def _setup(m3uPath, epgUrl):
     addon = Addon(ADDON_ID)
     ADDON_NAME = addon.getAddonInfo('name')
     addon_path = xbmcvfs.translatePath(addon.getAddonInfo('profile'))
-    instance_filepath = os.path.join(addon_path, 'instance-settings-90.xml')
+    instance_filepath = os.path.join(addon_path, 'instance-settings-91.xml')
 
     with busy():
         kodi_rpc('Addons.SetAddonEnabled', {

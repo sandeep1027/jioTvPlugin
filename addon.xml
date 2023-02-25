@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="jioTvPlugin" name="JioTV" version="2.1.0" provider-name="sandeep1027">
+<addon id="jioTvPlugin" name="JioTV" version="2.1.1" provider-name="sandeep1027">
     <requires>
         <import addon="xbmc.python" version="3.0.0"/>
         <import addon="script.module.codequick" version="1.0.2"/>
         <import addon="script.module.inputstreamhelper" version="0.5.10"/>
         <import addon="inputstream.adaptive" minversion="2.6.6"/>
         <import addon="script.module.m3u8" version="0.5.4"/>
-        <import addon="repository.jioTvPlugin" version="2.1.0"/>
+        <import addon="repository.jioTvPlugin" version="2.1.1"/>
     </requires>
     <extension point="xbmc.python.pluginsource" library="addon.py">
         <provides>video</provides>

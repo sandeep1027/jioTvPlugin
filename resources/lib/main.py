@@ -14,7 +14,7 @@ from codequick.storage import PersistentDict
 
 # add-on imports
 from resources.lib.utils import getHeaders, isLoggedIn, login as ULogin, logout as ULogout, check_addon, sendOTP, get_local_ip, getChannelHeaders, getQualityIndex, _setup
-from resources.lib.constants import GET_CHANNEL_URL, PLAY_EX_URL, EXTRA_CHANNELS, GENRE_MAP, LANG_MAP, FEATURED_SRC, CONFIG, CHANNELS_SRC, IMG_CATCHUP, PLAY_URL, IMG_CATCHUP_SHOWS, CATCHUP_SRC, M3U_SRC, EPG_SRC, M3U_CHANNEL,DICTIONARY_URL
+from resources.lib.constants import GET_CHANNEL_URL, GENRE_MAP, LANG_MAP, FEATURED_SRC, CONFIG, CHANNELS_SRC, IMG_CATCHUP, PLAY_URL, IMG_CATCHUP_SHOWS, CATCHUP_SRC, M3U_SRC, EPG_SRC, M3U_CHANNEL,DICTIONARY_URL
 
 # additional imports
 import urlquick
@@ -148,13 +148,14 @@ def show_listby(plugin, by):
 @Route.register
 def show_category(plugin, category_id, by):
     resp = urlquick.get(CHANNELS_SRC).json().get("result")
-
     def fltr(x):
         fby = by.lower()[:-1]
         if fby == "genre":
-            return GENRE_MAP[x.get("channelCategoryId")] == category_id and Settings.get_boolean(LANG_MAP[x.get("channelLanguageId")])
+            if str(x.get("channelCategoryId")) in GENRE_MAP:
+                return GENRE_MAP[str(x.get("channelCategoryId"))] == category_id and Settings.get_boolean(LANG_MAP[str(x.get("channelLanguageId"))])
         else:
-            return LANG_MAP[x.get("channelLanguageId")] == category_id
+            if str(x.get("channelLanguageId")) in LANG_MAP:
+                return LANG_MAP[str(x.get("channelLanguageId"))] == category_id
 
     for each in filter(fltr, resp):
         if each.get("channelIdForRedirect") and not Settings.get_boolean("extra"):
@@ -238,33 +239,6 @@ def show_epg(plugin, day, channel_id):
             })
 
 
-@Resolver.register
-@isLoggedIn
-def play_ex(plugin, dt=None):
-    is_helper = inputstreamhelper.Helper(
-        dt.get("proto", "mpd"), drm=dt.get("drm"))
-    if is_helper.check_inputstream():
-        licenseUrl = dt.get("lUrl") and dt.get("lUrl").replace("{HEADERS}", urlencode(
-            getHeaders()))
-        art = {}
-        if dt.get("default_logo"):
-            art['thumb'] = art['icon'] = IMG_CATCHUP + \
-                dt.get("default_logo")
-        return Listitem().from_dict(**{
-            "label": dt.get("label") or plugin._title,
-            "art": art or None,
-            "callback": dt.get("pUrl"),
-            "properties": {
-                "IsPlayable": True,
-                "inputstream": is_helper.inputstream_addon,
-                "inputstream.adaptive.stream_headers": dt.get("hdrs"),
-                "inputstream.adaptive.manifest_type": dt.get("proto", "mpd"),
-                "inputstream.adaptive.license_type": dt.get("drm"),
-                "inputstream.adaptive.license_key": licenseUrl,
-            }
-        })
-
-
 # Play live stream/ catchup according to params.
 # Also insures that user is logged in.
 @Resolver.register
@@ -274,14 +248,6 @@ def play(plugin, channel_id, showtime=None, srno=None ,  programId=None, begin=N
     hasIs = is_helper.check_inputstream()
     if not hasIs:
         return
-    if showtime is None and Settings.get_boolean("extra"):
-        with open(EXTRA_CHANNELS, "r") as f:
-            extra = json.load(f)
-        if extra.get(str(channel_id)):
-            if extra.get(str(channel_id)).get("ext"):
-                return extra.get(str(channel_id)).get("ext")
-            return PLAY_EX_URL + extra.get(str(channel_id)).get("data")
-
     rjson = {
         "channel_id": int(channel_id),
         "stream_type": "Seek"
@@ -376,8 +342,10 @@ def m3ugen(plugin, notify="yes"):
     channels = urlquick.get(CHANNELS_SRC).json().get("result")
     m3ustr = "#EXTM3U x-tvg-url=\"%s\"" % EPG_SRC
     for i, channel in enumerate(channels):
-        lang = LANG_MAP[channel.get("channelLanguageId")]
-        genre = GENRE_MAP[channel.get("channelCategoryId")]
+        if str(channel.get("channelLanguageId")) not in LANG_MAP or str(channel.get("channelCategoryId")) not in GENRE_MAP:
+            continue  
+        genre = GENRE_MAP[str(channel.get("channelCategoryId"))]
+        lang = LANG_MAP[str(channel.get("channelLanguageId"))]
         if not Settings.get_boolean(lang):
             continue
         group = lang + ";" + genre
@@ -407,7 +375,7 @@ def m3ugen(plugin, notify="yes"):
 @Script.register
 def pvrsetup(plugin):
     executebuiltin(
-        "RunPlugin(plugin://plugin.video.jiotv/resources/lib/main/m3ugen/)")
+        "RunPlugin(plugin://jioTvPlugin/resources/lib/main/m3ugen/)")
     IDdoADDON = 'pvr.iptvsimple'
 
     def set_setting(id, value):
