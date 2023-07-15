@@ -270,30 +270,59 @@ def play(plugin, channel_id, showtime=None, srno=None ,  programId=None, begin=N
     art["thumb"] = art["icon"] = IMG_CATCHUP + \
         onlyUrl.replace(".m3u8", ".png")
     headers['cookie'] = "__hdnea__"+resp.get("result", "").split("__hdnea__")[-1]
-    uriToUse = resp.get("result","")
-    m3u8String = urlquick.get(resp.get("result",""), headers=headers, max_age=-1).text
-    variant_m3u8 = m3u8.loads(m3u8String)
-    qltyOptFor = Settings.get_string("quality")
-    quality = getQualityIndex(qltyOptFor, len(variant_m3u8.playlists))
-    if variant_m3u8.is_variant and variant_m3u8.version < 7:
-        if isCatchup:
-            tmpurl = variant_m3u8.playlists[quality].uri
-            uriToUse = uriToUse.replace(onlyUrl, tmpurl.split("?")[0])
-            del headers['cookie']
-        else:
-            uriToUse = uriToUse.replace(onlyUrl, variant_m3u8.playlists[quality].uri)
-    return Listitem().from_dict(**{
-        "label": plugin._title,
-        "art": art,
-        "callback": uriToUse,
-        "properties": {
-            "IsPlayable": True,
-            "inputstream": "inputstream.adaptive",
-            "inputstream.adaptive.stream_headers": urlencode(headers),
-            "inputstream.adaptive.manifest_type": "hls",
-            "inputstream.adaptive.license_key": "|" + urlencode(headers) + "|R{SSM}|",
+    #check if mpd url exist
+    mpdArray = resp.get("mpd","")
+    if mpdArray:
+        uriToUse = mpdArray.get("result","")
+        log("uritouse:"+uriToUse,level=LOGINFO)
+        dmrKey = mpdArray.get("key","")
+        log("drmkey:"+dmrKey,level=LOGINFO)
+        license_headers = headers
+        license_headers['Content-Type'] =  'application/octet-stream'
+        license_config = { # for Python < v3.7 you should use OrderedDict to keep order
+            'license_server_url': dmrKey,
+            'headers': urlencode(license_headers),
+            'post_data': 'R{SSM}',
+            'response_data': 'R'
         }
-    })
+        return Listitem().from_dict(**{
+            "label": plugin._title,
+            "art": art,
+            "callback": uriToUse,
+            "properties": {
+                "IsPlayable": True,
+                "inputstream": "inputstream.adaptive",
+                "inputstream.adaptive.stream_headers": urlencode(headers),
+                "inputstream.adaptive.manifest_type": "mpd",
+                'inputstream.adaptive.license_type': 'com.widevine.alpha',
+                "inputstream.adaptive.license_key": '|'.join(license_config.values())
+            }
+        })
+    else:
+        uriToUse = resp.get("result","")
+        m3u8String = urlquick.get(resp.get("result",""), headers=headers, max_age=-1).text
+        variant_m3u8 = m3u8.loads(m3u8String)
+        qltyOptFor = Settings.get_string("quality")
+        quality = getQualityIndex(qltyOptFor, len(variant_m3u8.playlists))
+        if variant_m3u8.is_variant and variant_m3u8.version < 7:
+            if isCatchup:
+                tmpurl = variant_m3u8.playlists[quality].uri
+                uriToUse = uriToUse.replace(onlyUrl, tmpurl.split("?")[0])
+                del headers['cookie']
+            else:
+                uriToUse = uriToUse.replace(onlyUrl, variant_m3u8.playlists[quality].uri)
+        return Listitem().from_dict(**{
+            "label": plugin._title,
+            "art": art,
+            "callback": uriToUse,
+            "properties": {
+                "IsPlayable": True,
+                "inputstream": "inputstream.adaptive",
+                "inputstream.adaptive.stream_headers": urlencode(headers),
+                "inputstream.adaptive.manifest_type": "hls",
+                "inputstream.adaptive.license_key": "|" + urlencode(headers) + "|R{SSM}|",
+            }
+        })
 
 # Login `route` to access from Settings
 @Script.register
