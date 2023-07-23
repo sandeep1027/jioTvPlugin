@@ -274,17 +274,9 @@ def play(plugin, channel_id, showtime=None, srno=None ,  programId=None, begin=N
     mpdArray = resp.get("mpd","")
     if mpdArray:
         uriToUse = mpdArray.get("result","")
-        log("uritouse:"+uriToUse,level=LOGINFO)
         dmrKey = mpdArray.get("key","")
-        log("drmkey:"+dmrKey,level=LOGINFO)
         license_headers = headers
         license_headers['Content-Type'] =  'application/octet-stream'
-        license_config = { # for Python < v3.7 you should use OrderedDict to keep order
-            'license_server_url': dmrKey,
-            'headers': urlencode(license_headers),
-            'post_data': 'R{SSM}',
-            'response_data': 'R'
-        }
         return Listitem().from_dict(**{
             "label": plugin._title,
             "art": art,
@@ -295,7 +287,7 @@ def play(plugin, channel_id, showtime=None, srno=None ,  programId=None, begin=N
                 "inputstream.adaptive.stream_headers": urlencode(headers),
                 "inputstream.adaptive.manifest_type": "mpd",
                 'inputstream.adaptive.license_type': 'com.widevine.alpha',
-                "inputstream.adaptive.license_key": '|'.join(license_config.values())
+                "inputstream.adaptive.license_key": dmrKey+"|"+urlencode(license_headers)+"|R{SSM}|"
             }
         })
     else:
