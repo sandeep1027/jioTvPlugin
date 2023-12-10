@@ -270,26 +270,21 @@ def play(plugin, channel_id, showtime=None, srno=None ,  programId=None, begin=N
     art["thumb"] = art["icon"] = IMG_CATCHUP + \
         onlyUrl.replace(".m3u8", ".png")
     headers['cookie'] = "__hdnea__"+resp.get("result", "").split("__hdnea__")[-1]
+    #Settings.get_boolean("isMpd")
+    isMpd = True and resp.get("mpd", False)
     #check if mpd url exist
-    mpdArray = resp.get("mpd","")
-    if mpdArray:
+    if isMpd:
+        mpdArray = resp.get("mpd","")
         uriToUse = mpdArray.get("result","")
         dmrKey = mpdArray.get("key","")
         license_headers = headers
         license_headers['Content-Type'] =  'application/octet-stream'
-        return Listitem().from_dict(**{
-            "label": plugin._title,
-            "art": art,
-            "callback": uriToUse,
-            "properties": {
-                "IsPlayable": True,
-                "inputstream": "inputstream.adaptive",
-                "inputstream.adaptive.stream_headers": urlencode(headers),
-                "inputstream.adaptive.manifest_type": "mpd",
-                'inputstream.adaptive.license_type': 'com.widevine.alpha',
-                "inputstream.adaptive.license_key": dmrKey+"|"+urlencode(license_headers)+"|R{SSM}|"
-            }
-        })
+        license_config = {
+            "license_server_url": dmrKey,
+            "headers": urlencode(license_headers),
+            "post_data": "R{SSM}",
+            "response_data": "",
+        }
     else:
         uriToUse = resp.get("result","")
         m3u8String = urlquick.get(resp.get("result",""), headers=headers, max_age=-1).text
@@ -303,18 +298,25 @@ def play(plugin, channel_id, showtime=None, srno=None ,  programId=None, begin=N
                 del headers['cookie']
             else:
                 uriToUse = uriToUse.replace(onlyUrl, variant_m3u8.playlists[quality].uri)
-        return Listitem().from_dict(**{
-            "label": plugin._title,
-            "art": art,
-            "callback": uriToUse,
-            "properties": {
-                "IsPlayable": True,
-                "inputstream": "inputstream.adaptive",
-                "inputstream.adaptive.stream_headers": urlencode(headers),
-                "inputstream.adaptive.manifest_type": "hls",
-                "inputstream.adaptive.license_key": "|" + urlencode(headers) + "|R{SSM}|",
-            }
-        })
+    return Listitem().from_dict(**{
+        "label": plugin._title,
+        "art": art,
+        "callback": uriToUse + "|verifypeer=false",
+        "properties": {
+            "IsPlayable": True,
+            "inputstream": "inputstream.adaptive",
+            "inputstream.adaptive.stream_selection_type": "adaptive",
+            "inputstream.adaptive.chooser_resolution_secure_max": "4K",
+            "inputstream.adaptive.manifest_headers": urlencode(headers),
+            "inputstream.adaptive.manifest_type": "mpd" if isMpd else "hls",
+            "inputstream.adaptive.license_type": "com.widevine.alpha",
+            "inputstream.adaptive.license_key": "|".join(
+                        license_config.values()
+                    )
+                    if isMpd
+                    else "|" + urlencode(headers) + "|R{SSM}|",
+        }
+    })
 
 # Login `route` to access from Settings
 @Script.register
@@ -322,20 +324,13 @@ def login(plugin):
     method = Dialog().yesno("Login", "Select Login Method",
                             yeslabel="Keyboard", nolabel="WEB")
     if method == 1:
-        login_type = Dialog().yesno("Login", "Select Login Type",
-                                    yeslabel="OTP", nolabel="Password")
-        if login_type == 1:
-            mobile = keyboard("Enter your Jio mobile number")
-            error = sendOTP(mobile)
-            if error:
-                Script.notify("Login Error", error)
-                return
-            otp = keyboard("Enter OTP", hidden=True)
-            ULogin(mobile, otp, mode="otp")
-        elif login_type == 0:
-            username = keyboard("Enter your Jio mobile number or email")
-            password = keyboard("Enter your password", hidden=True)
-            ULogin(username, password)
+        mobile = keyboard("Enter your Jio mobile number")
+        error = sendOTP(mobile)
+        if error:
+            Script.notify("Login Error", error)
+            return
+        otp = keyboard("Enter OTP", hidden=True)
+        ULogin(mobile, otp)
     elif method == 0:
         pDialog = DialogProgress()
         pDialog.create(

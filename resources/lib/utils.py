@@ -21,6 +21,7 @@ import xbmcvfs
 import os
 from contextlib import contextmanager
 from collections import defaultdict
+from resources.lib.constants import HOST,REFRESH_TOKEN_URL,REFRESH_LOGIN_OTP,UPDATE_REFRESH_TOKEN_URL
 
 import json
 
@@ -44,14 +45,12 @@ def isLoggedIn(func):
     @wraps(func)
     def login_wrapper(*args, **kwargs):
         with PersistentDict("headers") as db:
-            username = db.get("username")
-            password = db.get("password")
             headers = db.get("headers")
             exp = db.get("exp", 0)
         if headers and exp > time.time():
-            return func(*args, **kwargs)
-        elif username and password:
-            login(username, password)
+            refreshAuth(headers["refreshToken"], headers["accesstoken"], headers["appName"], headers["deviceId"])
+            refreshSsoTokenAuth(headers["ssotoken"], headers["deviceid"], headers["uniqueid"])
+            updateRefreshToken(headers["refreshToken"], headers["accesstoken"], headers["uniqueid"],headers["appName"], headers["deviceId"])
             return func(*args, **kwargs)
         elif headers and exp < time.time():
             Script.notify(
@@ -61,36 +60,110 @@ def isLoggedIn(func):
             return False
         else:
             Script.notify(
-                "Login Error", "You need to login with Jio Username and password to use this add-on")
+                "Login Error", "You need to login with OTP to use this add-on")
             executebuiltin(
                 "RunPlugin(plugin://jioTvPlugin/resources/lib/main/login/)")
             return False
     return login_wrapper
 
 
-def login(username, password, mode="unpw"):
+def refreshAuth(refreshToken, authToken, appName, deviceId):
     body = {
-        "identifier": username if '@' in username else "+91" + username,
-        "password" if mode == "unpw" else "otp": password,
-        "rememberUser": "T",
-        "upgradeAuth": "Y",
-        "returnSessionDetails": "T",
+        "appName": appName,
+        "deviceId": deviceId,
+        "refreshToken": refreshToken
+    }
+    headers = {
+        'accesstoken': authToken,
+        'devicetype': 'phone ',
+        'os': 'android',
+        'user-agent': 'plaYtv/7.0.8 (Linux;Android 9) ExoPlayerLib/2.11.7',
+        'Content-Type': 'application/json'
+    }
+    resp = urlquick.post(REFRESH_TOKEN_URL, json=body, headers=headers, max_age=-1, verify=False, raise_for_status=False).json()
+    if resp.get("authToken", "") != "":
+        with PersistentDict("headers") as db:
+            db["accesstoken"] = resp.get("authToken")
+            db["exp"] = time.time() + 432000
+    else:
+        Script.log(resp, lvl=Script.INFO)
+        msg = resp.get("message", "Unknow Error")
+        Script.notify("Login Failed", msg)
+        return msg
+
+def refreshSsoTokenAuth(ssotoken, deviceid, uniqueid):
+    headers = {
+        'ssotoken': ssotoken,
+        'devicetype': 'phone',
+        'deviceid': deviceid,
+        'uniqueid':uniqueid,
+        'os': 'android',
+        'user-agent': 'plaYtv/7.0.8 (Linux;Android 9) ExoPlayerLib/2.11.7',
+        'Content-Type': 'application/json',
+        'versioncode':330
+    }
+    resp = urlquick.get(REFRESH_LOGIN_OTP, headers=headers, max_age=-1, verify=False, raise_for_status=False).json()
+    if resp.get("ssoToken", "") != "":
+        with PersistentDict("headers") as db:
+            db["ssotoken"] = resp.get("ssoToken")
+    else:
+        Script.log(resp, lvl=Script.INFO)
+        msg = resp.get("message", "Unknow Error")
+        Script.notify("Login Failed", msg)
+        return msg
+
+def updateRefreshToken(refreshToken, authToken, uniqueid, appName, deviceid):
+    body = {
+        "appName": appName,
+        "deviceId": deviceid,
+        "refreshToken": refreshToken,
+        "thirdPartyApp": "RJIL_JioEngage"
+    }
+    headers = {
+        'accesstoken': authToken,
+        'devicetype': 'phone ',
+        'os': 'android',
+        'user-agent': 'plaYtv/7.0.8 (Linux;Android 9) ExoPlayerLib/2.11.7',
+        'Content-Type': 'application/json',
+        uniqueid:uniqueid
+    }
+    resp = urlquick.post(UPDATE_REFRESH_TOKEN_URL, json=body, headers=headers, max_age=-1, verify=False, raise_for_status=False).json()
+    if resp.get("shortToken", "") != "":
+        with PersistentDict("headers") as db:
+            db["refreshToken"] = resp.get("shortToken")
+    else:
+        Script.log(resp, lvl=Script.INFO)
+        msg = resp.get("message", "Unknow Error")
+        Script.notify("Login Failed", msg)
+        return msg
+
+def login(mobile, otp):
+    body = {
+        "number": base64.b64encode(mobile),
+        "otp": otp,
         "deviceInfo": {
             "consumptionDeviceName": "ZUK Z1",
             "info": {
-                "type": "android",
-                "platform": {
-                    "name": "ham",
-                    "version": "9"
-                },
-                "androidId": ""
+            "type": "android",
+            "platform": {
+                "name": "ham"
+            },
+            "androidId": "3259d8734a88b7f1"
             }
         }
     }
-    resp = urlquick.post("https://api.jio.com/v3/dip/user/{0}/verify".format(mode), json=body, headers={
-                         "User-Agent": "JioTV", "x-api-key": "l7xx75e822925f184370b2e25170c5d5820a"}, max_age=-1, verify=False, raise_for_status=False).json()
+    headers = {
+        'appname': 'RJIL_JioTV',
+        'devicetype': 'phone ',
+        'os': 'android',
+        'user-agent': 'plaYtv/7.0.8 (Linux;Android 9) ExoPlayerLib/2.11.7',
+        'Content-Type': 'application/json'
+    }
+    resp = urlquick.post(HOST+"/userservice/apis/v1/loginotp/verify", json=body, headers=headers, max_age=-1, verify=False, raise_for_status=False).json()
     if resp.get("ssoToken", "") != "":
         _CREDS = {
+            "accesstoken":resp.get("authToken"),
+            "refreshToken": resp.get("refreshToken"),
             "ssotoken": resp.get("ssoToken"),
             "userid": resp.get("sessionAttributes", {}).get("user", {}).get("uid"),
             "uniqueid": resp.get("sessionAttributes", {}).get("user", {}).get("unique"),
@@ -98,22 +171,21 @@ def login(username, password, mode="unpw"):
             "subscriberid": resp.get("sessionAttributes", {}).get("user", {}).get("subscriberId"),
         }
         headers = {
-            "deviceId": str(uuid4()),
+            "appName": "RJIL_JioTV",
+            "deviceId": resp.get("deviceId"),
             "devicetype": "phone",
             "os": "android",
-            "osversion": "9",
+            "osversion": "12",
             "user-agent": "plaYtv/7.0.8 (Linux;Android 9) ExoPlayerLib/2.11.7",
             "usergroup": "tvYR7NSNn7rymo3F",
             "versioncode": "289",
-            "dm" : "ZUK ZUK Z1"
+            "dm" : "ONEPLUS 11",
+            "appkey": "NzNiMDhlYzQyNjJm"
         }
         headers.update(_CREDS)
         with PersistentDict("headers") as db:
             db["headers"] = headers
             db["exp"] = time.time() + 432000
-            if mode == "unpw":
-                db["username"] = username
-                db["password"] = password
         Script.notify("Login Success", "")
         return None
     else:
@@ -122,15 +194,19 @@ def login(username, password, mode="unpw"):
         Script.notify("Login Failed", msg)
         return msg
 
-
 def sendOTP(mobile):
     if "+91" not in mobile:
         mobile = "+91" + mobile
-    body = {"identifier": mobile, "otpIdentifier": mobile,
-            "action": "otpbasedauthn"}
+    body = {"number" : base64.b64encode(mobile)}
+    headers = {
+        'appname': 'RJIL_JioTV',
+        'devicetype': 'phone ',
+        'os': 'android',
+        'user-agent': 'plaYtv/7.0.8 (Linux;Android 9) ExoPlayerLib/2.11.7',
+        'Content-Type': 'application/json'
+    }
     Script.log(body, lvl=Script.ERROR)
-    resp = urlquick.post("https://api.jio.com/v3/dip/user/otp/send", json=body, headers={
-        "x-api-key": "l7xx75e822925f184370b2e25170c5d5820a"}, max_age=-1, verify=False, raise_for_status=False)
+    resp = urlquick.post(HOST+"/userservice/apis/v1/loginotp/send", json=body, headers=headers, max_age=-1, verify=False, raise_for_status=False)
     if resp.status_code != 204:
         return resp.json().get("errors", [{}])[-1].get("message")
     return None
@@ -149,15 +225,21 @@ def getHeaders():
 def getChannelHeaders():
     headers = getHeaders()
     return {
+        'accesstoken' : headers['accesstoken'],
         'ssotoken': headers['ssotoken'],
         'userId': headers['userid'],
         'uniqueId': headers['uniqueid'],
         'crmid': headers['crmid'],
-        'user-agent': 'plaYtv/7.0.8 (Linux;Android 9) ExoPlayerLib/2.11.7',
+        'user-agent':  headers['user-agent'],
         'deviceid': headers['deviceId'],
         'devicetype': 'phone',
-        'os': 'android',
-        'osversion': '9',
+        'os':  headers['os'],
+        'osversion':  headers['osversion'],
+        'appkey': headers['appkey'],
+        'subscriberid': headers['subscriberid'],
+        'uniqueid': headers['uniqueid'],
+        'userid': headers['userid'],
+        'versioncode': 330
     }
 
 def check_addon(addonid, minVersion=False):

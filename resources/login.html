@@ -13,10 +13,7 @@
         font-size: 15px;
         color: #ffffff;
       }
-      body {
-        background-image: url(https://jiotv.com/src/resources/images/Redirection-screen_Background.jpg);
-        background-size: cover;
-      }
+      
       /* form {
         margin-top: 50px;
       } */
@@ -41,7 +38,7 @@
       h1 {
         text-align: center;
         font-size: 2rem;
-        color: #ffffff;
+        color: #f73030;
       }
       button:hover {
         opacity: 0.8;
@@ -169,13 +166,13 @@
   </head>
   <body>
     <div>
-      <img
+      <!--<img
         src="https://jiotv.com/src/resources/images/JioTV_logo.png"
         alt="JioTV Logo"
         width="100px"
         height="100px"
         style="margin-left: auto; margin-right: auto; display: block"
-      />
+      /> -->
       <h1>JioTV Add-on Login</h1>
       <hr />
       <div class="alert" style="display: none">
@@ -190,8 +187,6 @@
         <label class="toggleLabel" for="tabToggle01" checked="checked"
           >Jio Number</label
         >
-        <input type="radio" id="tabToggle02" name="tabs" value="2" />
-        <label class="toggleLabel" for="tabToggle02">Jio ID</label>
         <tab-content>
           <form action="/login" method="POST">
             <div class="formcontainer">
@@ -209,35 +204,7 @@
               </div>
               <button id="sendOTP" type="submit">Send OTP</button>
               <p style="text-align: center; font-size: small; opacity: 0.5">
-                JioTV Add-on (botallen)
-              </p>
-            </div>
-          </form>
-        </tab-content>
-        <tab-content>
-          <form action="/login" method="POST">
-            <div class="formcontainer">
-              <div class="container">
-                <input
-                  id="username"
-                  name="username"
-                  type="text"
-                  placeholder="Mobile Number / Username"
-                  required
-                />
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  placeholder="Password"
-                  required
-                />
-                <input type="hidden" name="web" value="true" />
-                <input type="hidden" name="type" value="password" />
-              </div>
-              <button type="submit">Sign In</button>
-              <p style="text-align: center; font-size: small; opacity: 0.5">
-                JioTV Add-on (botallen)
+                JioTV Add-on (sandeep1027)
               </p>
             </div>
           </form>
